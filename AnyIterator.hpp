@@ -2,10 +2,11 @@
 
 #include <vector>
 #include <iterator>
+#include <cassert>
 
 namespace tyti {
-template<typename HandleT>
-class AnyIteratorT : std::iterator<std::bidirectional_iterator_tag, HandleT>
+template<typename T>
+class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 {
     //functionpointer save structure
     struct FunctionPtrs
@@ -14,7 +15,7 @@ class AnyIteratorT : std::iterator<std::bidirectional_iterator_tag, HandleT>
         void(*dec_fn)(void*);
         void(*del_fn)(void*);
         const bool(*equal_fn)(const void*,const void*);
-        const HandleT*(*deref_fn)(const void*);
+        const T*(*deref_fn)(const void*);
 
         void*(*copy_fn)(const void*);
     };
@@ -31,12 +32,12 @@ class AnyIteratorT : std::iterator<std::bidirectional_iterator_tag, HandleT>
         {
             //init function lookup table
             FunctionPtrs ptrs;
-            ptrs.del_fn = AnyIteratorT::deletePtr<IterType>;
-            ptrs.inc_fn = AnyIteratorT::inc<IterType>;
-            ptrs.dec_fn = AnyIteratorT::dec<IterType>;
-            ptrs.deref_fn = AnyIteratorT::deref<IterType>;
-            ptrs.equal_fn = AnyIteratorT::equal<IterType>;
-            ptrs.copy_fn = AnyIteratorT::createCopy < IterType > ;
+            ptrs.del_fn = any_iterator::deletePtr<IterType>;
+            ptrs.inc_fn = any_iterator::inc<IterType>;
+            ptrs.dec_fn = any_iterator::dec<IterType>;
+            ptrs.deref_fn = any_iterator::deref<IterType>;
+            ptrs.equal_fn = any_iterator::equal<IterType>;
+            ptrs.copy_fn = any_iterator::createCopy < IterType > ;
             functionPtrs_.push_back(ptrs);
         }
     private:
@@ -77,7 +78,7 @@ class AnyIteratorT : std::iterator<std::bidirectional_iterator_tag, HandleT>
     }
 
     template<typename Iter>
-    static const HandleT* deref(const void* _ptr)
+    static const T* deref(const void* _ptr)
     {
         return &(*(*reinterpret_cast<const Iter*>(_ptr)));
     }
@@ -102,18 +103,18 @@ class AnyIteratorT : std::iterator<std::bidirectional_iterator_tag, HandleT>
     /// Interface
 public:
     template <typename IterType>
-    explicit AnyIteratorT(const IterType& _iter) 
+    explicit any_iterator(const IterType& _iter) 
         : ptr_(reinterpret_cast<void*>(new IterType(_iter))), index_(getNumber<IterType>())
     {
     }
 
-    AnyIteratorT(const AnyIteratorT& _iter)
+    any_iterator(const any_iterator& _iter)
         : ptr_(functionPtrs_[_iter.index_].copy_fn(_iter.ptr_)), index_(_iter.index_)
     {
     }
 
     template <typename IterType>
-    AnyIteratorT operator=(const IterType& _iter)
+    any_iterator operator=(const IterType& _iter)
     {
         functionPtrs_[index_].del_fn(ptr_);
         ptr_ = reinterpret_cast<void*>(new IterType(_iter));
@@ -121,7 +122,7 @@ public:
         return *this;
     }
 
-    AnyIteratorT operator=(const AnyIteratorT& _iter)
+    any_iterator operator=(const any_iterator& _iter)
     {
         functionPtrs_[index_].del_fn(ptr_);
         ptr_ = functionPtrs_[_iter.index_].copy_fn(_iter.ptr_);
@@ -129,13 +130,14 @@ public:
         return *this;
     }
 
-    ~AnyIteratorT() 
+    ~any_iterator() 
     {
         functionPtrs_[index_].del_fn(ptr_);
     }
 
-    bool operator==(const AnyIteratorT& _rhs) const
+    bool operator==(const any_iterator& _rhs) const
     {
+		assert(_rhs.index_ == index_);
         if (index_ != _rhs.index_)
             return false;
         return functionPtrs_[index_].equal_fn(ptr_, _rhs.ptr_);
@@ -143,6 +145,7 @@ public:
 
     template <typename IterType>
     bool operator==(const IterType& _rhs) const {
+		assert(getNumber<IterType>() == index_);
         return functionPtrs_[index_].equal_fn(ptr_, reinterpret_cast<const void*>(&_rhs));
     }
 
@@ -152,43 +155,43 @@ public:
     }
 
     /// Standard pre-increment operator
-    AnyIteratorT& operator++() {
+    any_iterator& operator++() {
         functionPtrs_[index_].inc_fn(ptr_);
         return *this;
     }
 
     /// Standard post-increment operator
-    AnyIteratorT operator++(int) {
-        AnyIteratorT cpy(*this);
+    any_iterator operator++(int) {
+        any_iterator cpy(*this);
         functionPtrs_[index_].inc_fn(ptr_);
         return cpy;
     }
 
     /// Standard pre-decrement operator
-    AnyIteratorT& operator--() {
+    any_iterator& operator--() {
         functionPtrs_[index_].dec_fn(ptr_);
         return *this;
     }
 
     /// Standard post-decrement operator
-    AnyIteratorT operator--(int) {
-        AnyIteratorT cpy(*this);
+    any_iterator operator--(int) {
+        any_iterator cpy(*this);
         functionPtrs_[index_].dec_fn(ptr_);
         return cpy;
     }
 
-    const HandleT& operator*() const {
+    const T& operator*() const {
         return *(functionPtrs_[index_].deref_fn(ptr_));
     }
 
     /// Standard pointer operator.
-    const HandleT* operator->() const {
+    const T* operator->() const {
         return functionPtrs_[index_].deref_fn(ptr_);
     }
 };
 
-template<typename HandleT>
-std::vector<typename AnyIteratorT<HandleT>::FunctionPtrs> AnyIteratorT<HandleT>::functionPtrs_;
+template<typename T>
+std::vector<typename any_iterator<T>::FunctionPtrs> any_iterator<T>::functionPtrs_;
 
 // C++17 todo:
 //if msvc >= 2017 or gcc with c++17 support
@@ -198,8 +201,14 @@ std::vector<typename AnyIteratorT<HandleT>::FunctionPtrs> AnyIteratorT<HandleT>:
 
 } // end namespace tyti
 
-template<typename T, typename HandleT>
-bool operator==(const T& _lhs, const tyti::AnyIteratorT<HandleT>& _rhs)
+template<typename IterT, typename T>
+bool operator==(const IterT& _lhs, const tyti::any_iterator<T>& _rhs)
 {
     return _rhs == _lhs;
+}
+
+template<typename IterT, typename T>
+bool operator!=(const IterT& _lhs, const tyti::any_iterator<T>& _rhs)
+{
+	return _rhs != _lhs;
 }

@@ -12,14 +12,14 @@ TEST_CASE("basic inc-/decrement", "[basic]")
 	std::list<int> vl = { 6, 11, 21, 33 };
 	SECTION("normal increment")
 	{
-		tyti::AnyIteratorT<int> it(vc.begin());
+		tyti::any_iterator<int> it(vc.begin());
 		auto itc = vc.begin();
 		for (;it != vc.end(); ++it, ++itc)
 			REQUIRE(*it == *itc);
 	}
 	SECTION("increment with conatiner switch")
 	{
-		tyti::AnyIteratorT<int> it(vc.begin());
+		tyti::any_iterator<int> it(vc.begin());
 		auto itc = vc.begin();
 		for (; it != vc.end(); ++it, ++itc)
 			REQUIRE(*it == *itc);
@@ -31,7 +31,7 @@ TEST_CASE("basic inc-/decrement", "[basic]")
 	
 	SECTION("decrement from end")
 	{
-		tyti::AnyIteratorT<int> it(vc.end());
+		tyti::any_iterator<int> it(vc.end());
 		auto itc = vc.end();
 		do
 		{
@@ -43,7 +43,7 @@ TEST_CASE("basic inc-/decrement", "[basic]")
 
 	SECTION("decrement from end with conatiner switch")
 	{
-		tyti::AnyIteratorT<int> it(vc.end());
+		tyti::any_iterator<int> it(vc.end());
 		auto itc = vc.end(); 
 		do
 		{
