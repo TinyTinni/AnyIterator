@@ -45,7 +45,7 @@ class AnyIteratorT : std::iterator<std::bidirectional_iterator_tag, HandleT>
             // maybe use std::type_index+ unordered_map. 
             // But i cannot see any advantage (req. more mem, more computation)
             static size_t next = 0; 
-            return ++next;
+            return next++;
         }
     };
 
