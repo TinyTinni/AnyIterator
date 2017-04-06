@@ -5,7 +5,7 @@
 #include <vector>
 #include <list>
 
-TEST_CASE("basic_increment", "[basic]")
+TEST_CASE("basic inc-/decrement", "[basic]")
 {
 
 	std::vector<int> vc = { 5,10,20 };
@@ -28,4 +28,39 @@ TEST_CASE("basic_increment", "[basic]")
 		for (; it != vl.end(); ++it, ++itl)
 			REQUIRE(*it == *itl);
 	}
+	
+	SECTION("decrement from end")
+	{
+		tyti::AnyIteratorT<int> it(vc.end());
+		auto itc = vc.end();
+		do
+		{
+			--it;
+			--itc;
+			REQUIRE(*it == *itc);
+		}while (it != vc.begin());
+	}
+
+	SECTION("decrement from end with conatiner switch")
+	{
+		tyti::AnyIteratorT<int> it(vc.end());
+		auto itc = vc.end(); 
+		do
+		{
+			--it;
+			--itc;
+			REQUIRE(*it == *itc);
+		} while (it != vc.begin());
+		
+		
+		it = vl.end();
+		auto itl = vl.end();
+		do
+		{
+			--it;
+			--itl;
+			REQUIRE(*it == *itl);
+		} while (it != vl.begin());
+	}
 }
+
