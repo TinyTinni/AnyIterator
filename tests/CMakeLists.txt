@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.8)
+cmake_minimum_required(VERSION 3.6)
 project(AnyIterator_tests CXX)
 
 include(ExternalProject)
@@ -26,4 +26,5 @@ set(SRCS
  "main.cpp")
 
 add_executable(tests "../AnyIterator.hpp" ${SRCS})
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT tests) #requires cmake 3.6
 add_dependencies(tests catch)
