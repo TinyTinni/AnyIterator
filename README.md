@@ -12,3 +12,5 @@ is not applicable e.g. not supported by container.
 
 Just an older project, currently only basic operations and bidirectional iterators are supported.
 Tests needs to be rewritten, since the original one depends on another project. 
+
+Requires C++98 (not yet transferred to C++11 or beyond)
