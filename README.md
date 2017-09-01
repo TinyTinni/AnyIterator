@@ -1,4 +1,7 @@
 # AnyIterator
+[![Build Status](https://travis-ci.org/TinyTinni/AnyIterator.svg?branch=master)](https://travis-ci.org/TinyTinni/AnyIterator)
+[![Build status](https://ci.appveyor.com/api/projects/status/8stwrgm6ud4ovjs3?svg=true)](https://ci.appveyor.com/project/TinyTinni/anyiterator)
+
 Iterator with run-time polymorphism increment/decrement/deref operator.
 Behaves like an Iterator from any container.
 All Iterators must have the same dereference type, but can differ in container.
