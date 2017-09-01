@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <iterator>
-#include <cassert>
 
 namespace tyti {
 template<typename T>
@@ -137,7 +136,6 @@ public:
 
     bool operator==(const any_iterator& _rhs) const
     {
-		assert(_rhs.index_ == index_);
         if (index_ != _rhs.index_)
             return false;
         return functionPtrs_[index_].equal_fn(ptr_, _rhs.ptr_);
@@ -145,7 +143,6 @@ public:
 
     template <typename IterType>
     bool operator==(const IterType& _rhs) const {
-		assert(getNumber<IterType>() == index_);
         return functionPtrs_[index_].equal_fn(ptr_, reinterpret_cast<const void*>(&_rhs));
     }
 
@@ -210,5 +207,5 @@ bool operator==(const IterT& _lhs, const tyti::any_iterator<T>& _rhs)
 template<typename IterT, typename T>
 bool operator!=(const IterT& _lhs, const tyti::any_iterator<T>& _rhs)
 {
-	return _rhs != _lhs;
+    return _rhs != _lhs;
 }
