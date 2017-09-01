@@ -9,16 +9,16 @@ version: '{build}'
 environment:
   matrix:
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017 
-  Toolset: v150
+    Toolset: v150
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-  Toolset: v140
+    Toolset: v140
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
-  Toolset: v120
+    Toolset: v120
   #################################################
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-  Toolset: v110
+    Toolset: v110
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-  Toolset: v100
+    Toolset: v100
 
 platform:
   - Win32
