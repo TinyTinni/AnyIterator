@@ -25,6 +25,6 @@ set(SRCS
  "basic.cpp"
  "main.cpp")
 
-add_executable(tests "../AnyIterator.hpp" ${SRCS})
+add_executable(tests "../any_iterator.hpp" ${SRCS})
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT tests) #requires cmake 3.6
 add_dependencies(tests catch)

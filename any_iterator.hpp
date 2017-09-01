@@ -51,10 +51,10 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     };
 
     //interface to get the number
-    template <typename T>
+    template <typename IterType>
     static size_t getNumber()
     {
-        static Incrementer i = Incrementer(T());
+        static Incrementer i = Incrementer(IterType());
         return i.number;
     }
 
@@ -149,8 +149,8 @@ public:
         return functionPtrs_[index_].equal_fn(ptr_, reinterpret_cast<const void*>(&_rhs));
     }
 
-    template <typename T>
-    bool operator!=(const T& _rhs) const{
+    template <typename IterType>
+    bool operator!=(const IterType& _rhs) const{
         return !operator==(_rhs);
     }
 
