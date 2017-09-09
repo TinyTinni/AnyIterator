@@ -17,6 +17,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         const T*(*deref_fn)(const void*);
 
         void*(*copy_fn)(const void*);
+        void(*assign_fn)(void*, const void*);
     };
 
     // function lookup table
@@ -37,6 +38,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
             ptrs.deref_fn = any_iterator::deref<IterType>;
             ptrs.equal_fn = any_iterator::equal<IterType>;
             ptrs.copy_fn = any_iterator::createCopy < IterType > ;
+            ptrs.assign_fn = any_iterator::assign < IterType > ;
             functionPtrs_.push_back(ptrs);
         }
     private:
@@ -94,6 +96,11 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         return reinterpret_cast<void*>(new Iter(*reinterpret_cast<const Iter*>(_ptr)));
     }
 
+    template<typename Iter>
+    static void assign(void* lhs, const void* rhs)
+    {
+        *reinterpret_cast<Iter*>(lhs) = *reinterpret_cast<const Iter*>(rhs);
+    }
 
     // member variables
     void* ptr_;
@@ -115,14 +122,23 @@ public:
     template <typename IterType>
     any_iterator operator=(const IterType& _iter)
     {
+        size_t new_index = getNumber<IterType>();
+        if (index_ == new_index) {
+            functionPtrs_[index_].assign_fn(ptr_, &_iter);
+            return *this;
+        }
         functionPtrs_[index_].del_fn(ptr_);
         ptr_ = reinterpret_cast<void*>(new IterType(_iter));
-        index_ = getNumber<IterType>();
+        index_ = new_index;
         return *this;
     }
 
     any_iterator operator=(const any_iterator& _iter)
     {
+        if (index_ == _iter.index_) {
+            functionPtrs_[index_].assign_fn(ptr_, &_iter);
+            return *this;
+        }
         functionPtrs_[index_].del_fn(ptr_);
         ptr_ = functionPtrs_[_iter.index_].copy_fn(_iter.ptr_);
         index_ = _iter.index_;
