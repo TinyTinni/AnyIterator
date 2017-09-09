@@ -3,6 +3,10 @@
 #include <vector>
 #include <iterator>
 
+#include <cstdlib> //malloc, realloc
+#include <cstring> //memcpy
+#include <exception> //bad_alloc
+
 namespace tyti {
 template<typename T>
 class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
@@ -16,7 +20,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         const bool(*equal_fn)(const void*,const void*);
         const T*(*deref_fn)(const void*);
 
-        void*(*copy_fn)(const void*);
+        size_t size;
     };
 
     // function lookup table
@@ -31,12 +35,12 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         {
             //init function lookup table
             FunctionPtrs ptrs;
-            ptrs.del_fn = any_iterator::deletePtr<IterType>;
             ptrs.inc_fn = any_iterator::inc<IterType>;
             ptrs.dec_fn = any_iterator::dec<IterType>;
             ptrs.deref_fn = any_iterator::deref<IterType>;
             ptrs.equal_fn = any_iterator::equal<IterType>;
-            ptrs.copy_fn = any_iterator::createCopy < IterType > ;
+            ptrs.size = sizeof(IterType);
+
             functionPtrs_.push_back(ptrs);
         }
     private:
@@ -58,12 +62,6 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     }
 
     //access functions
-    template<typename Iter>
-    static void deletePtr(void* _ptr)
-    {
-        delete reinterpret_cast<Iter*>(_ptr);
-    }
-
     template<typename Iter>
     static void inc(void* _ptr)
     {
@@ -88,12 +86,17 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         return *reinterpret_cast<const Iter*>(_lhs) == *reinterpret_cast<const Iter*>(_rhs);
     }
 
-    template<typename Iter>
-    static void* createCopy(const void* _ptr)
+    // helper functions
+    static void assign(void* dst_, size_t dst_size_, const void* src_, size_t src_size_)
     {
-        return reinterpret_cast<void*>(new Iter(*reinterpret_cast<const Iter*>(_ptr)));
+        if (dst_size_ < src_size_)
+        {
+            dst_ = std::realloc(dst_, src_size_);
+            if (!dst_)
+                throw std::bad_alloc();
+        }
+        std::memcpy(dst_, src_, src_size_);
     }
-
 
     // member variables
     void* ptr_;
@@ -103,35 +106,43 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 public:
     template <typename IterType>
     explicit any_iterator(const IterType& _iter) 
-        : ptr_(reinterpret_cast<void*>(new IterType(_iter))), index_(getNumber<IterType>())
+        : ptr_(std::malloc(sizeof(IterType))), index_(getNumber<IterType>())
     {
+        if (!ptr_)
+            throw std::bad_alloc();
+        std::memcpy(ptr_, &_iter, sizeof(IterType));
     }
 
     any_iterator(const any_iterator& _iter)
-        : ptr_(functionPtrs_[_iter.index_].copy_fn(_iter.ptr_)), index_(_iter.index_)
+        : ptr_(std::malloc(functionPtrs_[_iter.index_].size)), index_(_iter.index_)
     {
+        if (!ptr_)
+            throw std::bad_alloc();
+        std::memcpy(ptr_, _iter.ptr_, functionPtrs_[_iter.index_].size);
     }
 
     template <typename IterType>
     any_iterator operator=(const IterType& _iter)
     {
-        functionPtrs_[index_].del_fn(ptr_);
-        ptr_ = reinterpret_cast<void*>(new IterType(_iter));
+        const size_t old_size = functionPtrs_[index_].size;
+        const size_t new_size = sizeof(IterType);
+        assign(ptr_, old_size, &_iter, new_size);
         index_ = getNumber<IterType>();
         return *this;
     }
 
     any_iterator operator=(const any_iterator& _iter)
     {
-        functionPtrs_[index_].del_fn(ptr_);
-        ptr_ = functionPtrs_[_iter.index_].copy_fn(_iter.ptr_);
+        const size_t old_size = functionsPtrs_[index_].size;
+        const size_t new_size = functionsPtrs_[_iter.index_].size;
+        assign(ptr, oldsize, _iter.ptr, new_size);
         index_ = _iter.index_;
         return *this;
     }
 
     ~any_iterator() 
     {
-        functionPtrs_[index_].del_fn(ptr_);
+        std::free(ptr_);
     }
 
     bool operator==(const any_iterator& _rhs) const
