@@ -6,6 +6,9 @@ set(SRCS
  "main.cpp")
 
 add_executable(tests "../any_iterator.hpp" ${SRCS})
+if (MSVC)
+    target_compile_definitions(tests PUBLIC CATCH_CONFIG_WINDOWS_CRTDBG)
+endif()
 
 find_path(
     CATCH_INCLUDE_DIR 
