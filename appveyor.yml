@@ -14,8 +14,8 @@ environment:
   #################################################
   - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
     Toolset: v110
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
-    Toolset: v100
+  #- APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2015
+  #  Toolset: v100
 
 platform:
   - Win32

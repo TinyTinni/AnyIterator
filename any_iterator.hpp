@@ -30,14 +30,14 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         static_assert(std::is_destructible<IterType>::value, "any_iterator requires a destructable type");
         static TypeInfos ti =
         {
-            any_iterator::inc<IterType>,
-            any_iterator::dec<IterType>,
-            any_iterator::equal<IterType>,
-            any_iterator::deref<IterType>,
+            &any_iterator::inc<IterType>,
+            &any_iterator::dec<IterType>,
+            &any_iterator::equal<IterType>,
+            &any_iterator::deref<IterType>,
             (std::is_trivially_destructible<IterType>::value) ? 
-                nullptr : any_iterator::dtor<IterType>,
+                nullptr : &any_iterator::dtor<IterType>,
             (std::is_trivially_copy_constructible<IterType>::value) ?
-                nullptr : any_iterator::copyConstructor<IterType>,
+                nullptr : &any_iterator::copyConstructor<IterType>,
             sizeof(IterType)
         };
         return &ti;
