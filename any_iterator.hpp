@@ -3,9 +3,10 @@
 #include <iterator>
 
 #include <cstdlib> //malloc, realloc
-#include <cstring> //memcpy
+#include <cstring> //memcpy, memmove
 #include <exception> //bad_alloc
 #include <type_traits>
+#include <utility>
 
 namespace tyti {
 template<typename T>
@@ -24,7 +25,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     };
 
     template<typename IterType>
-    TypeInfos* getFunctionInfos()
+    constexpr TypeInfos* getFunctionInfos() noexcept
     {
         static_assert(std::is_copy_constructible<IterType>::value, "any_iterator requires a copy constructable type");
         static_assert(std::is_destructible<IterType>::value, "any_iterator requires a destructable type");
@@ -105,19 +106,36 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
             memcpy(ptr_, _src, ti_->size);
     }
 
+    inline void move_iter(const void* _src)
+    {
+        if (ti_->copy_ctor_fn)
+            ti_->copy_ctor_fn(ptr_, _src);
+        else
+            memmove(ptr_, _src, ti_->size);
+    }
+
     // member variables
     void* ptr_;
     const TypeInfos* ti_;
 
     /// Interface
 public:
-    template <typename IterType>
+    template <typename IterType, class = typename std::enable_if<!std::is_rvalue_reference<IterType>::value>::type>
     explicit any_iterator(const IterType& _iter) 
         : ptr_(std::malloc(sizeof(IterType))), ti_(getFunctionInfos<IterType>())
     {
         if (!ptr_)
             throw std::bad_alloc();
         copy_and_assign(&_iter);
+    }
+
+    template<typename IterType, class = typename std::enable_if<std::is_rvalue_reference<IterType>::value>::type>
+        explicit any_iterator(IterType&& _iter)
+        : ptr_(std::malloc(_iter.ti_->size)), ti_(std::move(_iter.ti_))
+    {
+        if (!ptr_)
+            throw std::bad_alloc();
+        move_iter(_iter.ptr_);
     }
 
     any_iterator(const any_iterator& _iter)
@@ -128,7 +146,14 @@ public:
         copy_and_assign(_iter.ptr_);
     }
 
-    template <typename IterType>
+    any_iterator(any_iterator&& _iter)
+        : ptr_(_iter.ptr), ti_(_iter.ti_)
+    {
+        _iter.ptr_ = nullptr;
+        _iter.ti_ = getFunctionInfos<int>();//dont call dtor
+    }
+
+    template <typename IterType, class = typename std::enable_if<!std::is_rvalue_reference<IterType>::value>::type >
     const any_iterator& operator=(const IterType& _iter)
     {
         switch_type(getFunctionInfos<IterType>());
@@ -136,10 +161,27 @@ public:
         return *this;
     }
 
-    any_iterator operator=(const any_iterator& _iter)
+    template <typename IterType, class = typename std::enable_if<std::is_rvalue_reference<IterType>::value>::type>
+        const any_iterator& operator=(IterType&& _iter)
+    {
+        switch_type(getFunctionInfos<IterType>());
+        move_iter(&_iter);
+        return *this;
+    }
+
+    const any_iterator& operator=(const any_iterator& _iter)
     {
         switch_type(_iter.ti_);
         copy_and_assign(_iter.ptr_);
+        return *this;
+    }
+
+    const any_iterator& operator=(any_iterator&& _iter)
+    {
+        ti_ = _iter.ti_;
+        ptr_ = _iter.ptr_;
+        _iter.ti_ = getFunctionInfos<int>();
+        _iter.ptr_ = nullptr;
         return *this;
     }
 
@@ -211,7 +253,7 @@ public:
 } // end namespace tyti
 
 template<typename IterT, typename T>
-bool operator==(const IterT& _lhs, const tyti::any_iterator<T>& _rhs)
+bool operator==(const IterT&& _lhs, const tyti::any_iterator<T>&& _rhs)
 {
     return _rhs.operator==(std::forward<IterT>(_lhs));
 }

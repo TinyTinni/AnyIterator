@@ -8,15 +8,8 @@
 TEST_CASE("basic inc-/decrement", "[basic]")
 {
 
-    std::vector<int> vc;// = { 5,10,20 };
-    vc.push_back(5);
-    vc.push_back(10);
-    vc.push_back(20);
-    std::list<int> vl;// = { 6, 11, 21, 33 };
-    vl.push_back(6);
-    vl.push_back(11);
-    vl.push_back(21);
-    vl.push_back(33);
+    std::vector<int> vc = { 5,10,20 };
+    std::list<int> vl = { 6, 11, 21, 33 };
     auto i = vc.begin();
     i = vc.end();
     SECTION("normal increment")
