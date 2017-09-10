@@ -17,6 +17,8 @@ TEST_CASE("basic inc-/decrement", "[basic]")
     vl.push_back(11);
     vl.push_back(21);
     vl.push_back(33);
+    auto i = vc.begin();
+    i = vc.end();
     SECTION("normal increment")
     {
         tyti::any_iterator<int> it(vc.begin());
@@ -72,15 +74,20 @@ TEST_CASE("basic inc-/decrement", "[basic]")
 
     SECTION("assign from any_vector")
     {
-        tyti::any_iterator<int> it_src(vc.end());
+        tyti::any_iterator<int> it_src(vc.begin());
         tyti::any_iterator<int> it(it_src);
-        auto itc = vc.end();
-        do
-        {
-            --it;
-            --itc;
-            REQUIRE(*it == *itc);
-        } while (it != vc.begin());
+        REQUIRE(it_src == it);
+        REQUIRE(*it_src == *it);
+        it_src = it;
+        REQUIRE(it_src == it);
+        REQUIRE(*it_src == *it);
+    }
+
+    SECTION("compare with non-any")
+    {
+        tyti::any_iterator<int> it_src(vc.begin());
+        REQUIRE(it_src == vc.begin());
+        REQUIRE(it_src != vc.end());
     }
 }
 

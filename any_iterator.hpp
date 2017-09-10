@@ -5,6 +5,7 @@
 #include <cstdlib> //malloc, realloc
 #include <cstring> //memcpy
 #include <exception> //bad_alloc
+#include <type_traits>
 
 namespace tyti {
 template<typename T>
@@ -13,22 +14,30 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     //functionpointer save structure
     struct TypeInfos
     {
-        void(*inc_fn)(void*);
-        void(*dec_fn)(void*);
-        const bool(*equal_fn)(const void*,const void*);
-        const T*(*deref_fn)(const void*);
-        size_t size;
+        void(*const inc_fn)(void*);
+        void(*const dec_fn)(void*);
+        const bool(*const equal_fn)(const void*,const void*);
+        const T*(*const deref_fn)(const void*);
+        void(*const dtor_fn)(void*);
+        void(*const copy_ctor_fn)(void*,const void*);
+        const size_t size;
     };
 
     template<typename IterType>
-    TypeInfos* getFunctionInfos()
+    constexpr TypeInfos* getFunctionInfos()
     {
+        static_assert(std::is_copy_constructible<IterType>::value, "any_iterator requires a copy constructable type");
+        static_assert(std::is_destructible<IterType>::value, "any_iterator requires a destructable type");
         static TypeInfos ti =
         {
             any_iterator::inc<IterType>,
             any_iterator::dec<IterType>,
             any_iterator::equal<IterType>,
             any_iterator::deref<IterType>,
+            (std::is_trivially_destructible<IterType>::value) ? 
+                nullptr : any_iterator::dtor<IterType>,
+            (std::is_trivially_copy_constructible<IterType>::value) ?
+                nullptr : any_iterator::copyConstructor<IterType>,
             sizeof(IterType)
         };
         return &ti;
@@ -58,22 +67,47 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     {
         return *reinterpret_cast<const Iter*>(_lhs) == *reinterpret_cast<const Iter*>(_rhs);
     }
+    template<typename Iter>
+    static void dtor(void* _ptr)
+    {
+        reinterpret_cast<Iter*>(_ptr)->~Iter();
+    }
+    template<typename Iter>
+    static void copyConstructor(void* _dst, const void* _src)
+    {
+        new (_dst) Iter(*reinterpret_cast<const Iter*>(_src));
+    }
 
     // helper functions
-    static void assign(void* dst_, size_t dst_size_, const void* src_, size_t src_size_)
+    inline void destruct()
     {
-        if (dst_size_ < src_size_)
+        if (ti_->dtor_fn)
+            ti_->dtor_fn(ptr_);
+    }
+
+    void switch_type(const TypeInfos* _newType)
+    {
+        destruct();
+        if (ti_->size < _newType->size)
         {
-            dst_ = std::realloc(dst_, src_size_);
-            if (!dst_)
+            ptr_ = std::realloc(ptr_, _newType->size);
+            if (!ptr_)
                 throw std::bad_alloc();
         }
-        std::memcpy(dst_, src_, src_size_);
+        ti_ = _newType;
+    }
+
+    inline void copy_and_assign(const void* _src)
+    {
+        if (ti_->copy_ctor_fn)
+            ti_->copy_ctor_fn(ptr_, _src);
+        else
+            memcpy(ptr_, _src, ti_->size);
     }
 
     // member variables
     void* ptr_;
-    TypeInfos* ti_;
+    const TypeInfos* ti_;
 
     /// Interface
 public:
@@ -83,7 +117,7 @@ public:
     {
         if (!ptr_)
             throw std::bad_alloc();
-        std::memcpy(ptr_, &_iter, sizeof(IterType));
+        copy_and_assign(&_iter);
     }
 
     any_iterator(const any_iterator& _iter)
@@ -91,30 +125,27 @@ public:
     {
         if (!ptr_)
             throw std::bad_alloc();
-        std::memcpy(ptr_, _iter.ptr_, ti_->size);
+        copy_and_assign(_iter.ptr_);
     }
 
     template <typename IterType>
-    any_iterator operator=(const IterType& _iter)
+    const any_iterator& operator=(const IterType& _iter)
     {
-        const size_t old_size = ti_->size;
-        const size_t new_size = sizeof(IterType);
-        assign(ptr_, old_size, &_iter, new_size);
-        ti_ = getFunctionInfos<IterType>();
+        switch_type(getFunctionInfos<IterType>());
+        copy_and_assign(&_iter);
         return *this;
     }
 
     any_iterator operator=(const any_iterator& _iter)
     {
-        const size_t old_size = ti_->size;
-        const size_t new_size = _iter.ti_->size;
-        assign(ptr_, old_size, _iter.ptr_, new_size);
-        ti_ = _iter.ti_;
+        switch_type(_iter.ti_);
+        copy_and_assign(_iter.ptr_);
         return *this;
     }
 
     ~any_iterator() 
     {
+        destruct();
         std::free(ptr_);
     }
 
@@ -182,11 +213,11 @@ public:
 template<typename IterT, typename T>
 bool operator==(const IterT& _lhs, const tyti::any_iterator<T>& _rhs)
 {
-    return _rhs == _lhs;
+    return _rhs.operator==(std::forward<IterT>(_lhs));
 }
 
 template<typename IterT, typename T>
-bool operator!=(const IterT& _lhs, const tyti::any_iterator<T>& _rhs)
+bool operator!=(IterT&& _lhs, tyti::any_iterator<T>&& _rhs)
 {
-    return _rhs != _lhs;
+    return _rhs.operator!=(std::forward<IterT>(_lhs));
 }
