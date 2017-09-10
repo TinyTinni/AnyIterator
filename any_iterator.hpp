@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vector>
 #include <iterator>
 
 #include <cstdlib> //malloc, realloc
@@ -12,53 +11,27 @@ template<typename T>
 class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 {
     //functionpointer save structure
-    struct FunctionPtrs
+    struct TypeInfos
     {
         void(*inc_fn)(void*);
         void(*dec_fn)(void*);
-        void(*del_fn)(void*);
         const bool(*equal_fn)(const void*,const void*);
         const T*(*deref_fn)(const void*);
-
         size_t size;
     };
 
-    // function lookup table
-    static std::vector<FunctionPtrs> functionPtrs_;
-
-    // init lookuptable and generate number for the given type. used by the "getNumber" interface
-    struct Incrementer
+    template<typename IterType>
+    TypeInfos* getFunctionInfos()
     {
-        const size_t number;
-        template< typename IterType>
-        Incrementer(IterType /*dummy*/) :number(nextNumber())
+        static TypeInfos ti =
         {
-            //init function lookup table
-            FunctionPtrs ptrs;
-            ptrs.inc_fn = any_iterator::inc<IterType>;
-            ptrs.dec_fn = any_iterator::dec<IterType>;
-            ptrs.deref_fn = any_iterator::deref<IterType>;
-            ptrs.equal_fn = any_iterator::equal<IterType>;
-            ptrs.size = sizeof(IterType);
-
-            functionPtrs_.push_back(ptrs);
-        }
-    private:
-        static size_t nextNumber()
-        {
-            // maybe use std::type_index+ unordered_map. 
-            // But i cannot see any advantage (req. more mem, more computation)
-            static size_t next = 0; 
-            return next++;
-        }
-    };
-
-    //interface to get the number
-    template <typename IterType>
-    static size_t getNumber()
-    {
-        static Incrementer i = Incrementer(IterType());
-        return i.number;
+            any_iterator::inc<IterType>,
+            any_iterator::dec<IterType>,
+            any_iterator::equal<IterType>,
+            any_iterator::deref<IterType>,
+            sizeof(IterType)
+        };
+        return &ti;
     }
 
     //access functions
@@ -100,13 +73,13 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 
     // member variables
     void* ptr_;
-    size_t index_;
+    TypeInfos* ti_;
 
     /// Interface
 public:
     template <typename IterType>
     explicit any_iterator(const IterType& _iter) 
-        : ptr_(std::malloc(sizeof(IterType))), index_(getNumber<IterType>())
+        : ptr_(std::malloc(sizeof(IterType))), ti_(getFunctionInfos<IterType>())
     {
         if (!ptr_)
             throw std::bad_alloc();
@@ -114,29 +87,29 @@ public:
     }
 
     any_iterator(const any_iterator& _iter)
-        : ptr_(std::malloc(functionPtrs_[_iter.index_].size)), index_(_iter.index_)
+        : ptr_(std::malloc(_iter.ti_->size)), ti_(_iter.ti_)
     {
         if (!ptr_)
             throw std::bad_alloc();
-        std::memcpy(ptr_, _iter.ptr_, functionPtrs_[_iter.index_].size);
+        std::memcpy(ptr_, _iter.ptr_, ti_->size);
     }
 
     template <typename IterType>
     any_iterator operator=(const IterType& _iter)
     {
-        const size_t old_size = functionPtrs_[index_].size;
+        const size_t old_size = ti_->size;
         const size_t new_size = sizeof(IterType);
         assign(ptr_, old_size, &_iter, new_size);
-        index_ = getNumber<IterType>();
+        ti_ = getFunctionInfos<IterType>();
         return *this;
     }
 
     any_iterator operator=(const any_iterator& _iter)
     {
-        const size_t old_size = functionsPtrs_[index_].size;
-        const size_t new_size = functionsPtrs_[_iter.index_].size;
+        const size_t old_size = ti_->size;
+        const size_t new_size = _iter.ti_->size;
         assign(ptr, oldsize, _iter.ptr, new_size);
-        index_ = _iter.index_;
+        ti_ = _iter.ti_;
         return *this;
     }
 
@@ -149,12 +122,12 @@ public:
     {
         if (index_ != _rhs.index_)
             return false;
-        return functionPtrs_[index_].equal_fn(ptr_, _rhs.ptr_);
+        return ti_->equal_fn(ptr_, _rhs.ptr_);
     }
 
     template <typename IterType>
     bool operator==(const IterType& _rhs) const {
-        return functionPtrs_[index_].equal_fn(ptr_, reinterpret_cast<const void*>(&_rhs));
+        return ti_->equal_fn(ptr_, reinterpret_cast<const void*>(&_rhs));
     }
 
     template <typename IterType>
@@ -164,42 +137,39 @@ public:
 
     /// Standard pre-increment operator
     any_iterator& operator++() {
-        functionPtrs_[index_].inc_fn(ptr_);
+        ti_->inc_fn(ptr_);
         return *this;
     }
 
     /// Standard post-increment operator
     any_iterator operator++(int) {
         any_iterator cpy(*this);
-        functionPtrs_[index_].inc_fn(ptr_);
+        ti_->inc_fn(ptr_);
         return cpy;
     }
 
     /// Standard pre-decrement operator
     any_iterator& operator--() {
-        functionPtrs_[index_].dec_fn(ptr_);
+        ti_->dec_fn(ptr_);
         return *this;
     }
 
     /// Standard post-decrement operator
     any_iterator operator--(int) {
         any_iterator cpy(*this);
-        functionPtrs_[index_].dec_fn(ptr_);
+        ti_->dec_fn(ptr_);
         return cpy;
     }
 
     const T& operator*() const {
-        return *(functionPtrs_[index_].deref_fn(ptr_));
+        return *(ti_->deref_fn(ptr_));
     }
 
     /// Standard pointer operator.
     const T* operator->() const {
-        return functionPtrs_[index_].deref_fn(ptr_);
+        return ti_->deref_fn(ptr_);
     }
 };
-
-template<typename T>
-std::vector<typename any_iterator<T>::FunctionPtrs> any_iterator<T>::functionPtrs_;
 
 // C++17 todo:
 //if msvc >= 2017 or gcc with c++17 support

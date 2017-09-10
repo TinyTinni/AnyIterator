@@ -69,5 +69,18 @@ TEST_CASE("basic inc-/decrement", "[basic]")
             REQUIRE(*it == *itl);
         } while (it != vl.begin());
     }
+
+    SECTION("assign from any_vector")
+    {
+        tyti::any_iterator<int> it_src(vc.end());
+        tyti::any_iterator<int> it(it_src);
+        auto itc = vc.end();
+        do
+        {
+            --it;
+            --itc;
+            REQUIRE(*it == *itc);
+        } while (it != vc.begin());
+    }
 }
 
