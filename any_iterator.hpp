@@ -108,7 +108,7 @@ public:
     {
         const size_t old_size = ti_->size;
         const size_t new_size = _iter.ti_->size;
-        assign(ptr, old_size, _iter.ptr, new_size);
+        assign(ptr_, old_size, _iter.ptr_, new_size);
         ti_ = _iter.ti_;
         return *this;
     }
