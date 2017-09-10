@@ -108,7 +108,7 @@ public:
     {
         const size_t old_size = ti_->size;
         const size_t new_size = _iter.ti_->size;
-        assign(ptr, oldsize, _iter.ptr, new_size);
+        assign(ptr, old_size, _iter.ptr, new_size);
         ti_ = _iter.ti_;
         return *this;
     }
@@ -120,7 +120,7 @@ public:
 
     bool operator==(const any_iterator& _rhs) const
     {
-        if (index_ != _rhs.index_)
+        if (ti_ != _rhs.ti_) //different types
             return false;
         return ti_->equal_fn(ptr_, _rhs.ptr_);
     }
