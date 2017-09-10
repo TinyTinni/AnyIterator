@@ -13,5 +13,5 @@ is not applicable e.g. not supported by container.
 Just an older project, currently only basic operations and bidirectional iterators are supported.
 Tests needs to be rewritten, since the original one depends on another project. 
 
-Requires C++11
+Requires C++11 (type_traits, static_assert, nullptr) See build status for more details.
 Input Iterator must be destructable and at least copy_constructable
