@@ -60,15 +60,15 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     }
 
     // helper functions
-    static void assign(void* dst_, size_t dst_size_, const void* src_, size_t src_size_)
+    static void assign(void** dst_, size_t dst_size_, const void* src_, size_t src_size_)
     {
         if (dst_size_ < src_size_)
         {
-            dst_ = std::realloc(dst_, src_size_);
-            if (!dst_)
+            *dst_ = std::realloc(*dst_, src_size_);
+            if (!*dst_)
                 throw std::bad_alloc();
         }
-        std::memcpy(dst_, src_, src_size_);
+        std::memcpy(*dst_, src_, src_size_);
     }
 
     // member variables
@@ -99,7 +99,7 @@ public:
     {
         const size_t old_size = ti_->size;
         const size_t new_size = sizeof(IterType);
-        assign(ptr_, old_size, &_iter, new_size);
+        assign(&ptr_, old_size, &_iter, new_size);
         ti_ = getFunctionInfos<IterType>();
         return *this;
     }
@@ -108,7 +108,7 @@ public:
     {
         const size_t old_size = ti_->size;
         const size_t new_size = _iter.ti_->size;
-        assign(ptr_, old_size, _iter.ptr_, new_size);
+        assign(&ptr_, old_size, _iter.ptr_, new_size);
         ti_ = _iter.ti_;
         return *this;
     }
