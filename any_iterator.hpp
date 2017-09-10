@@ -25,7 +25,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     };
 
     template<typename IterType>
-    constexpr TypeInfos* getFunctionInfos() noexcept
+    TypeInfos* getFunctionInfos() noexcept
     {
         static_assert(std::is_copy_constructible<IterType>::value, "any_iterator requires a copy constructable type");
         static_assert(std::is_destructible<IterType>::value, "any_iterator requires a destructable type");
