@@ -35,9 +35,9 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
             &any_iterator::equal<IterType>,
             &any_iterator::deref<IterType>,
             (std::is_trivially_destructible<IterType>::value) ? 
-                nullptr : &any_iterator::dtor<IterType>,
+            static_cast<void(*)(void*)>(nullptr) : &any_iterator::dtor<IterType>,
             (std::is_trivially_copy_constructible<IterType>::value) ?
-                nullptr : &any_iterator::copyConstructor<IterType>,
+            static_cast<void(*)(void*,const void*)>(nullptr) : &any_iterator::copyConstructor<IterType>,
             sizeof(IterType)
         };
         return &ti;
