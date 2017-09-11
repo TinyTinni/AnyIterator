@@ -21,24 +21,30 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         const T*(*const deref_fn)(const void*);
         void(*const dtor_fn)(void*);
         void(*const copy_ctor_fn)(void*,const void*);
+        void(*const move_ctor_fn)(void*, const void*);
         const size_t size;
     };
 
     template<typename IterType>
     TypeInfos* getFunctionInfos() noexcept
     {
+#if !defined(_MSC_VER) || (_MSC_VER > 1600) // skip vs 2010. It doesnt implement "is_copy_constructible"
         static_assert(std::is_copy_constructible<IterType>::value, "any_iterator requires a copy constructable type");
         static_assert(std::is_destructible<IterType>::value, "any_iterator requires a destructable type");
+#endif
         static TypeInfos ti =
         {
             &any_iterator::inc<IterType>,
             &any_iterator::dec<IterType>,
             &any_iterator::equal<IterType>,
             &any_iterator::deref<IterType>,
-            (std::is_trivially_destructible<IterType>::value) ? 
-            static_cast<void(*)(void*)>(nullptr) : &any_iterator::dtor<IterType>,
-            (std::is_trivially_copy_constructible<IterType>::value) ?
-            static_cast<void(*)(void*,const void*)>(nullptr) : &any_iterator::copyConstructor<IterType>,
+            //(std::is_trivially_destructible<IterType>::value) ? 
+            //static_cast<void(*)(void*)>(nullptr) : 
+            &any_iterator::dtor<IterType>,
+            //(std::is_trivially_copy_constructible<IterType>::value) ?
+            //static_cast<void(*)(void*,const void*)>(nullptr) :
+            &any_iterator::copyConstructor<IterType>,
+            &any_iterator::moveConstructor<IterType>,
             sizeof(IterType)
         };
         return &ti;
@@ -78,12 +84,16 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     {
         new (_dst) Iter(*reinterpret_cast<const Iter*>(_src));
     }
+    template<typename Iter>
+    static void moveConstructor(void* _dst, const void* _src)
+    {
+        new (_dst) Iter(std::move(*reinterpret_cast<const Iter*>(_src)));
+    }
 
     // helper functions
     inline void destruct()
     {
-        if (ti_->dtor_fn)
-            ti_->dtor_fn(ptr_);
+        ti_->dtor_fn(ptr_);
     }
 
     void switch_type(const TypeInfos* _newType)
@@ -100,18 +110,12 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 
     inline void copy_and_assign(const void* _src)
     {
-        if (ti_->copy_ctor_fn)
-            ti_->copy_ctor_fn(ptr_, _src);
-        else
-            memcpy(ptr_, _src, ti_->size);
+        ti_->copy_ctor_fn(ptr_, _src);
     }
 
     inline void move_iter(const void* _src)
     {
-        if (ti_->copy_ctor_fn)
-            ti_->copy_ctor_fn(ptr_, _src);
-        else
-            memmove(ptr_, _src, ti_->size);
+        ti_->move_ctor_fn(ptr_, _src);
     }
 
     // member variables
