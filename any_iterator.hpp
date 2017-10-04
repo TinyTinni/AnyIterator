@@ -28,10 +28,6 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     template<typename IterType>
     TypeInfos* getFunctionInfos()
     {
-#if !defined(_MSC_VER) || (_MSC_VER > 1600) // skip vs 2010. It doesnt implement "is_copy_constructible"
-        static_assert(std::is_copy_constructible<IterType>::value, "any_iterator requires a copy constructable type");
-        static_assert(std::is_destructible<IterType>::value, "any_iterator requires a destructable type");
-#endif
         static TypeInfos ti =
         {
             &any_iterator::inc<IterType>,
