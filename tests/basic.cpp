@@ -82,5 +82,13 @@ TEST_CASE("basic inc-/decrement", "[basic]")
         REQUIRE(it_src == vc.begin());
         REQUIRE(it_src != vc.end());
     }
+
+    SECTION("l-value construct")
+    {
+        tyti::any_iterator<int> it(tyti::any_iterator<int>(vc.begin()));
+        REQUIRE(it == vc.begin());
+        it = tyti::any_iterator<int>(vc.end());
+        REQUIRE(it == vc.end());
+    }
 }
 

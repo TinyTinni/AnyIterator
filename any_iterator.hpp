@@ -12,7 +12,7 @@ namespace tyti {
 template<typename T>
 class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 {
-    //functionpointer save structure
+    //functionpointer save structurez
     struct TypeInfos
     {
         void(*const inc_fn)(void*);
@@ -45,6 +45,19 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         };
         return &ti;
     }
+
+    // used to destruct nothing e.g. used when the l-value should not destruct anything
+    struct NoDestruct
+    {
+        NoDestruct(const NoDestruct&){}
+        NoDestruct(NoDestruct&&){}
+        NoDestruct operator++() { return *this; }
+        NoDestruct operator--() { return *this; }
+        bool operator==(const NoDestruct&) { return false; }
+        bool operator!=(const NoDestruct&) { return false; }
+        ~NoDestruct() {}
+        T* operator*() { return nullptr; }
+    };
 
     //access functions
     template<typename Iter>
@@ -147,10 +160,9 @@ public:
     }
 
     any_iterator(any_iterator&& _iter)
-        : ptr_(_iter.ptr), ti_(_iter.ti_)
+        :ptr_(_iter.ptr_), ti_(_iter.ti_)
     {
-        _iter.ptr_ = nullptr;
-        _iter.ti_ = getFunctionInfos<int>();//dont call dtor
+        _iter.ti_ = getFunctionInfos<NoDestruct>();
     }
 
     template <typename IterType, class = typename std::enable_if<!std::is_rvalue_reference<IterType>::value>::type >
@@ -178,10 +190,9 @@ public:
 
     const any_iterator& operator=(any_iterator&& _iter)
     {
-        ti_ = _iter.ti_;
-        ptr_ = _iter.ptr_;
-        _iter.ti_ = getFunctionInfos<int>();
-        _iter.ptr_ = nullptr;
+        std::swap(ti_, _iter.ti_);
+        std::swap(ptr_, _iter.ptr_);
+        //old ptr gets destructed via _iter
         return *this;
     }
 
