@@ -8,6 +8,8 @@
 #include <type_traits>
 #include <utility>
 
+#include <cassert>
+
 namespace tyti {
 template<typename T>
 class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
@@ -47,16 +49,19 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     }
 
     // used to destruct nothing e.g. used when the l-value should not destruct anything
+    // Do not provide it to the user.
     struct NoDestruct
     {
-        NoDestruct(const NoDestruct&){}
-        NoDestruct(NoDestruct&&){}
-        NoDestruct operator++() { return *this; }
-        NoDestruct operator--() { return *this; }
-        bool operator==(const NoDestruct&) { return false; }
-        bool operator!=(const NoDestruct&) { return false; }
-        ~NoDestruct() {}
-        T* operator*() { return nullptr; }
+        ~NoDestruct() {} //only destructor is used
+
+        NoDestruct(const NoDestruct&) { assert(false); }
+        NoDestruct(NoDestruct&&) { assert(false); }
+        NoDestruct operator++() { assert(false); return *this; }
+        NoDestruct operator--() { assert(false); return *this; }
+        bool operator==(const NoDestruct&) const { assert(false); return false; }
+        bool operator!=(const NoDestruct&) const { assert(false); return false; }
+        //this function will never be called. just for compile correctness
+        const T& operator*() const { assert(false); return *(reinterpret_cast<T*>(this)); }
     };
 
     //access functions
