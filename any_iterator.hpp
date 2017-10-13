@@ -61,7 +61,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         bool operator==(const NoDestruct&) const { assert(false); return false; }
         bool operator!=(const NoDestruct&) const { assert(false); return false; }
         //this function will never be called. just for compile correctness
-        const T& operator*() const { assert(false); return *(reinterpret_cast<T*>(this)); }
+        const T& operator*() const { assert(false); return *(reinterpret_cast<const T*>(this)); }
     };
 
     //access functions
