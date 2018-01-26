@@ -22,7 +22,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         virtual bool equal(const void* in) const = 0;
 
         virtual void copy_and_assign_to(void* dst) const = 0;
-        virtual size_t holder_size() noexcept = 0;
+        virtual size_t holder_size() = 0;
     };
 
     template<typename IterT>
@@ -39,7 +39,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         bool equal_holder(const void* in) const { return iter_ == reinterpret_cast<const IterHolder<IterT>*>(in)->iter_; }
         bool equal(const void* in) const { return iter_ == *reinterpret_cast<const IterT*>(in); }
         void copy_and_assign_to(void* dst) const { new (dst) IterHolder(iter_); }
-        size_t holder_size() noexcept { return sizeof(IterHolder<IterT>); }
+        size_t holder_size() { return sizeof(IterHolder<IterT>); }
     };
 
     // helper functions
