@@ -3,7 +3,9 @@
 #include <iterator>
 
 #include <cstdlib> //malloc, realloc
+#include <cstring> //memcpy, memmove
 #include <exception> //bad_alloc
+#include <type_traits>
 #include <utility>
 
 #include <cassert>
@@ -12,101 +14,188 @@ namespace tyti {
 template<typename T>
 class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 {
-    struct AbstractIterHolder
+    //functionpointer save structurez
+    struct TypeInfos
     {
-        virtual ~AbstractIterHolder() {};
-        virtual void inc() = 0;
-        virtual void dec() = 0;
-        virtual T* deref() = 0;
-        virtual bool equal_holder(const void* in) const = 0;
-        virtual bool equal(const void* in) const = 0;
-
-        virtual void copy_and_assign_to(void* dst) const = 0;
-        virtual size_t holder_size() = 0;
+        void(*const inc_fn)(void*);
+        void(*const dec_fn)(void*);
+        const bool(*const equal_fn)(const void*,const void*);
+        const T*(*const deref_fn)(const void*);
+        void(*const dtor_fn)(void*);
+        void(*const copy_ctor_fn)(void*,const void*);
+        void(*const move_ctor_fn)(void*, const void*);
+        const size_t size;
     };
 
-    template<typename IterT>
-    struct IterHolder : public AbstractIterHolder
+    template<typename IterType>
+    TypeInfos* getFunctionInfos()
     {
-    private:
-        IterT iter_;
-    public:
-        IterHolder(IterT t):iter_{std::move(t)}{}
-        ~IterHolder(){}
-        void inc() { ++iter_; }
-        void dec() { --iter_; }
-        T* deref() { return &(*iter_); }
-        bool equal_holder(const void* in) const { return iter_ == reinterpret_cast<const IterHolder<IterT>*>(in)->iter_; }
-        bool equal(const void* in) const { return iter_ == *reinterpret_cast<const IterT*>(in); }
-        void copy_and_assign_to(void* dst) const { new (dst) IterHolder(iter_); }
-        size_t holder_size() { return sizeof(IterHolder<IterT>); }
+        static TypeInfos ti =
+        {
+            &any_iterator::inc<IterType>,
+            &any_iterator::dec<IterType>,
+            &any_iterator::equal<IterType>,
+            &any_iterator::deref<IterType>,
+            //(std::is_trivially_destructible<IterType>::value) ? 
+            //static_cast<void(*)(void*)>(nullptr) : 
+            &any_iterator::dtor<IterType>,
+            //(std::is_trivially_copy_constructible<IterType>::value) ?
+            //static_cast<void(*)(void*,const void*)>(nullptr) :
+            &any_iterator::copyConstructor<IterType>,
+            &any_iterator::moveConstructor<IterType>,
+            sizeof(IterType)
+        };
+        return &ti;
+    }
+
+    // used to destruct nothing e.g. used when the l-value should not destruct anything
+    // Do not provide it to the user.
+    struct NoDestruct
+    {
+        ~NoDestruct() {} //only destructor is used
+
+        NoDestruct(const NoDestruct&) { assert(false); }
+        NoDestruct(NoDestruct&&) { assert(false); }
+        NoDestruct operator++() { assert(false); return *this; }
+        NoDestruct operator--() { assert(false); return *this; }
+        bool operator==(const NoDestruct&) const { assert(false); return false; }
+        bool operator!=(const NoDestruct&) const { assert(false); return false; }
+        //this function will never be called. just for compile correctness
+        const T& operator*() const { assert(false); return *(reinterpret_cast<const T*>(this)); }
     };
+
+    //access functions
+    template<typename Iter>
+    static void inc(void* _ptr)
+    {
+        ++(*reinterpret_cast<Iter*>(_ptr));
+    }
+
+    template<typename Iter>
+    static void dec(void* _ptr)
+    {
+        --(*reinterpret_cast<Iter*>(_ptr));
+    }
+
+    template<typename Iter>
+    static const T* deref(const void* _ptr)
+    {
+        return &(*(*reinterpret_cast<const Iter*>(_ptr)));
+    }
+
+    template<typename Iter>
+    static const bool equal(const void* _lhs, const void* _rhs)
+    {
+        return *reinterpret_cast<const Iter*>(_lhs) == *reinterpret_cast<const Iter*>(_rhs);
+    }
+    template<typename Iter>
+    static void dtor(void* _ptr)
+    {
+        reinterpret_cast<Iter*>(_ptr)->~Iter();
+    }
+    template<typename Iter>
+    static void copyConstructor(void* _dst, const void* _src)
+    {
+        new (_dst) Iter(*reinterpret_cast<const Iter*>(_src));
+    }
+    template<typename Iter>
+    static void moveConstructor(void* _dst, const void* _src)
+    {
+        new (_dst) Iter(std::move(*reinterpret_cast<const Iter*>(_src)));
+    }
 
     // helper functions
     inline void destruct()
     {
-        ptr_->~AbstractIterHolder();
+        ti_->dtor_fn(ptr_);
     }
 
-    void check_allocation(size_t oldsize, size_t newsize)
+    void switch_type(const TypeInfos* _newType)
     {
-        if (oldsize < newsize)
+        destruct();
+        if (ti_->size < _newType->size)
         {
-            ptr_ = reinterpret_cast<AbstractIterHolder*>(std::realloc(ptr_, newsize));
+            ptr_ = std::realloc(ptr_, _newType->size);
             if (!ptr_)
                 throw std::bad_alloc();
         }
+        ti_ = _newType;
+    }
+
+    inline void copy_and_assign(const void* _src)
+    {
+        ti_->copy_ctor_fn(ptr_, _src);
+    }
+
+    inline void move_iter(const void* _src)
+    {
+        ti_->move_ctor_fn(ptr_, _src);
     }
 
     // member variables
-    AbstractIterHolder* ptr_;
+    void* ptr_;
+    const TypeInfos* ti_;
 
     /// Interface
 public:
     template <typename IterType, class = typename std::enable_if<!std::is_rvalue_reference<IterType>::value>::type>
-    explicit any_iterator(IterType _iter) 
-        : ptr_(reinterpret_cast<AbstractIterHolder*>(std::malloc(sizeof(IterHolder<IterType>))))
+    explicit any_iterator(const IterType& _iter) 
+        : ptr_(std::malloc(sizeof(IterType))), ti_(getFunctionInfos<IterType>())
     {
         if (!ptr_)
             throw std::bad_alloc();
-        new (ptr_) IterHolder<IterType>(std::move(_iter));
+        copy_and_assign(&_iter);
+    }
+
+    template<typename IterType, class = typename std::enable_if<std::is_rvalue_reference<IterType>::value>::type>
+        explicit any_iterator(IterType&& _iter)
+        : ptr_(std::malloc(_iter.ti_->size)), ti_(std::move(_iter.ti_))
+    {
+        if (!ptr_)
+            throw std::bad_alloc();
+        move_iter(_iter.ptr_);
     }
 
     any_iterator(const any_iterator& _iter)
-        : ptr_(reinterpret_cast<AbstractIterHolder*>(std::malloc(_iter.ptr_->holder_size())))
+        : ptr_(std::malloc(_iter.ti_->size)), ti_(_iter.ti_)
     {
         if (!ptr_)
             throw std::bad_alloc();
-        _iter.ptr_->copy_and_assign_to(ptr_);
+        copy_and_assign(_iter.ptr_);
     }
 
     any_iterator(any_iterator&& _iter)
-        :ptr_(std::move(_iter.ptr_))
+        :ptr_(_iter.ptr_), ti_(_iter.ti_)
     {
-        _iter.ptr_ = nullptr;
+        _iter.ti_ = getFunctionInfos<NoDestruct>();
     }
 
     template <typename IterType, class = typename std::enable_if<!std::is_rvalue_reference<IterType>::value>::type >
-    const any_iterator& operator=(IterType _iter)
+    const any_iterator& operator=(const IterType& _iter)
     {
-        const size_t old_size = ptr_->holder_size();
-        destruct();
-        check_allocation(old_size, sizeof(IterHolder<IterType>));
-        new (ptr_) IterHolder<IterType>(std::move(_iter));
+        switch_type(getFunctionInfos<IterType>());
+        copy_and_assign(&_iter);
+        return *this;
+    }
+
+    template <typename IterType, class = typename std::enable_if<std::is_rvalue_reference<IterType>::value>::type>
+        const any_iterator& operator=(IterType&& _iter)
+    {
+        switch_type(getFunctionInfos<IterType>());
+        move_iter(&_iter);
         return *this;
     }
 
     const any_iterator& operator=(const any_iterator& _iter)
     {
-        const size_t old_size = ptr_->holder_size();
-        destruct();
-        check_allocation(old_size, _iter.ptr_->holder_size());
-        _iter.ptr_->copy_and_assign_to(ptr_);
+        switch_type(_iter.ti_);
+        copy_and_assign(_iter.ptr_);
         return *this;
     }
 
     const any_iterator& operator=(any_iterator&& _iter)
     {
+        std::swap(ti_, _iter.ti_);
         std::swap(ptr_, _iter.ptr_);
         //old ptr gets destructed via _iter
         return *this;
@@ -114,23 +203,20 @@ public:
 
     ~any_iterator() 
     {
-        if (ptr_)
-        {
-            destruct();
-            std::free(ptr_);
-        }
+        destruct();
+        std::free(ptr_);
     }
 
     bool operator==(const any_iterator& _rhs) const
     {
-        if (typeid(*ptr_) != typeid(*_rhs.ptr_)) //different types
+        if (ti_ != _rhs.ti_) //different types
             return false;
-        return ptr_->equal_holder(_rhs.ptr_);
+        return ti_->equal_fn(ptr_, _rhs.ptr_);
     }
 
     template <typename IterType>
     bool operator==(const IterType& _rhs) const {
-        return ptr_->equal(reinterpret_cast<const void*>(&_rhs));
+        return ti_->equal_fn(ptr_, reinterpret_cast<const void*>(&_rhs));
     }
 
     template <typename IterType>
@@ -140,47 +226,45 @@ public:
 
     /// Standard pre-increment operator
     any_iterator& operator++() {
-        ptr_->inc();
+        ti_->inc_fn(ptr_);
         return *this;
     }
 
     /// Standard post-increment operator
     any_iterator operator++(int) {
         any_iterator cpy(*this);
-        ptr_->inc();
+        ti_->inc_fn(ptr_);
         return cpy;
     }
 
     /// Standard pre-decrement operator
     any_iterator& operator--() {
-        ptr_->dec();
+        ti_->dec_fn(ptr_);
         return *this;
     }
 
     /// Standard post-decrement operator
     any_iterator operator--(int) {
         any_iterator cpy(*this);
-        ptr_->dec();
+        ti_->dec_fn(ptr_);
         return cpy;
     }
 
     const T& operator*() const {
-        return *ptr_->deref();
-    }
-
-    T& operator*() {
-        return *ptr_->deref();
+        return *(ti_->deref_fn(ptr_));
     }
 
     /// Standard pointer operator.
     const T* operator->() const {
-        return ptr_->deref();
-    }
-
-    T* operator->() {
-        return ptr_->deref();
+        return ti_->deref_fn(ptr_);
     }
 };
+
+// C++17 todo:
+//if msvc >= 2017 or gcc with c++17 support
+//#include <any>
+//using AnyIterator = AnyIteratorT<std::any>;
+//endif
 
 } // end namespace tyti
 

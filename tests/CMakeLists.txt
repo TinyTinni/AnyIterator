@@ -48,6 +48,12 @@ enable_testing(true)  # Enables unit-testing.
 
 add_test(NAME any_iterator_tests COMMAND tests)
 
+find_package(benchmark QUIET)
+if (benchmark_FOUND)
+    add_executable(any_iter_benchmark "../any_iterator.hpp;any_iterator_virtual.hpp" "benchmark.cpp")
+    target_link_libraries(any_iter_benchmark PUBLIC benchmark::benchmark)
+endif()
+
 if (MSVC)
     target_compile_definitions(tests PUBLIC CATCH_CONFIG_WINDOWS_CRTDBG)
     set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT tests)
