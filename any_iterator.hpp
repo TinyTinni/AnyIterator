@@ -17,7 +17,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         virtual ~AbstractIterHolder() {};
         virtual void inc() = 0;
         virtual void dec() = 0;
-        virtual const T* deref() = 0;
+        virtual T* deref() = 0;
         virtual bool equal_holder(const void* in) const = 0;
         virtual bool equal(const void* in) const = 0;
 
@@ -35,7 +35,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         ~IterHolder(){}
         void inc() { ++iter_; }
         void dec() { --iter_; }
-        const T* deref() { return &(*iter_); }
+        T* deref() { return &(*iter_); }
         bool equal_holder(const void* in) const { return iter_ == reinterpret_cast<const IterHolder<IterT>*>(in)->iter_; }
         bool equal(const void* in) const { return iter_ == *reinterpret_cast<const IterT*>(in); }
         void copy_and_assign_to(void* dst) const { new (dst) IterHolder(iter_); }
@@ -168,8 +168,16 @@ public:
         return *ptr_->deref();
     }
 
+    T& operator*() {
+        return *ptr_->deref();
+    }
+
     /// Standard pointer operator.
     const T* operator->() const {
+        return ptr_->deref();
+    }
+
+    T* operator->() {
         return ptr_->deref();
     }
 };
