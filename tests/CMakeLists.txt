@@ -50,7 +50,7 @@ add_test(NAME any_iterator_tests COMMAND tests)
 
 find_package(benchmark QUIET)
 if (benchmark_FOUND)
-    add_executable(any_iter_benchmark "../any_iterator.hpp;any_iterator_virtual.hpp" "benchmark.cpp" "performance.md")
+    add_executable(any_iter_benchmark "../any_iterator.hpp;any_iterator_virtual.hpp" "benchmark.cpp" "Readme.md")
     target_link_libraries(any_iter_benchmark PUBLIC benchmark::benchmark)
 	include_external_msproject(benchmark_plotter "${CMAKE_CURRENT_SOURCE_DIR}/benchmark_plotter.pyproj" TYPE 888888a0-9f3d-457c-b088-3a5042f75d52 GUID 4d9723ef-7dfd-4dd0-9c08-5c530557b25e)
 endif()

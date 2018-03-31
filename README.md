@@ -31,6 +31,7 @@ Input Iterator must be destructable and at least copy_constructable and move_con
 Implementation nodes:
 - only bidirectional iteratiors are supported (can easily be extended)
 - uses heap for saving internal structure. If you know the maximum sies of your iterator, it is maybe a good idea to use [std::aligned_storage](http://en.cppreference.com/w/cpp/types/aligned_storage)
-- for a quick performance overview, have a look at the [Performance Site](./tests/Readme.md)
+- any_iterator can do up to ~10% less iterations per timeunit than the native iterator (for a quick performance overview, have a look at the [performance site](./tests/Readme.md))
+ 
 
 

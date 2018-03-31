@@ -8,6 +8,8 @@ for such a purporse.
 Tests includes the performance impact given an iterator of std\::map or std\::list using the native vs. any iterator.
 The third iterator, any_iterator_virtual, is an alternative implementation of any_iterator using an abstract class.
 
+To summarize: any_iterator can do up to ~10% less iterations per timeunit than the native iterator.
+
 Test machine:
 4 X 3400 MHz CPUs (Intel i5-4670)
 16GB RAM
