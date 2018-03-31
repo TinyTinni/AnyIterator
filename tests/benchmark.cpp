@@ -61,9 +61,7 @@ void benchmark_iteration_accumulate(benchmark::State &state)
         result = std::accumulate(it, it_end, 0);
     }
 
-
-    state.SetBytesProcessed(int64_t(state.iterations()) *
-        int64_t(state.range(0)) * sizeof(int));
+    state.SetItemsProcessed(state.iterations() * int64_t(state.range(0)));
 }
 
 template< class IterT >
@@ -90,20 +88,21 @@ void benchmark_iteration_map(benchmark::State &state)
         result = intm;
     }
 
-
-    state.SetBytesProcessed(int64_t(state.iterations()) *
-        int64_t(state.range(0)) * sizeof(int));
+    state.SetItemsProcessed(state.iterations() *  int64_t(state.range(0)));
 }
 
-constexpr size_t MY_RANGE_START = 8 << 5;
+constexpr size_t MY_RANGE_START = 8 << 0;
 constexpr size_t MY_RANGE_END = 8 << 20;
 constexpr benchmark::TimeUnit tu = benchmark::kMicrosecond;
+constexpr size_t range_multi = 2;
 
-//BENCHMARK_TEMPLATE(benchmark_iteration, std::vector<int>::iterator, std::vector<int>)->Range(MY_RANGE_START, MY_RANGE_END);
-//BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator<int>, std::vector<int>)->Range(MY_RANGE_START, MY_RANGE_END);
-BENCHMARK_TEMPLATE(benchmark_iteration, std::list<int>::iterator, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
-BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator<int>, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
-BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator_virtual<int>, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
+//BENCHMARK_TEMPLATE(benchmark_iteration, std::vector<int>::iterator, std::vector<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
+//BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator<int>, std::vector<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
+//BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator_virtual<int>, std::vector<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
+
+BENCHMARK_TEMPLATE(benchmark_iteration, std::list<int>::iterator, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
+BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator<int>, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
+BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator_virtual<int>, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
 
 //BENCHMARK_TEMPLATE(benchmark_iteration_accumulate, std::vector<int>::iterator, std::vector<int>)->Range(MY_RANGE_START, MY_RANGE_END);
 ////BENCHMARK_TEMPLATE(benchmark_iteration_accumulate, tyti::any_iterator<int>, std::vector<int>)->Range(MY_RANGE_START, MY_RANGE_END);
@@ -111,8 +110,8 @@ BENCHMARK_TEMPLATE(benchmark_iteration, tyti::any_iterator_virtual<int>, std::li
 //BENCHMARK_TEMPLATE(benchmark_iteration_accumulate, tyti::any_iterator<int>, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
 //BENCHMARK_TEMPLATE(benchmark_iteration_accumulate, tyti2::any_iterator<int>, std::list<int>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
 
-BENCHMARK_TEMPLATE(benchmark_iteration_map, std::map<int, int>::iterator)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
-BENCHMARK_TEMPLATE(benchmark_iteration_map, tyti::any_iterator<std::pair<const int, int>>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
-BENCHMARK_TEMPLATE(benchmark_iteration_map, tyti::any_iterator_virtual<std::pair<const int,int>>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu);
+BENCHMARK_TEMPLATE(benchmark_iteration_map, std::map<int, int>::iterator)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
+BENCHMARK_TEMPLATE(benchmark_iteration_map, tyti::any_iterator<std::pair<const int, int>>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
+BENCHMARK_TEMPLATE(benchmark_iteration_map, tyti::any_iterator_virtual<std::pair<const int,int>>)->Range(MY_RANGE_START, MY_RANGE_END)->Unit(tu)->RangeMultiplier(range_multi);
 
 BENCHMARK_MAIN();
