@@ -14,6 +14,8 @@ Test machine:
 4 X 3400 MHz CPUs (Intel i5-4670)
 16GB RAM
 
+Compiler: MSVC 2017, Release x64 (with default-config /O2)
+
 ![List Iteration](./benchmark_results/list_iteration.svg)
 
 ![Map Iteration](./benchmark_results/map_iteration.svg)
