@@ -61,11 +61,11 @@ def plot_file(filename, plot_name):
         x = plt.errorbar(v[0], v[1], yerr=v[2], linestyle="-.", fmt='o', capsize=10)
     #plt.legend([k for (k,v) in data_dict.items()])
     plt.legend(["Reference","any_iterator","any_iterator_virtual"])
-        
-    
+         
     return plt
 
 p1 = plot_file("benchmark_results/result_list.csv", "iteration over a list")
 p1.savefig("benchmark_results/list_iteration.svg")
+p1.clf()
 p2 = plot_file("benchmark_results/result_map.csv", "iteration over a map")
-p1.savefig("benchmark_results/map_iteration.svg")
+p2.savefig("benchmark_results/map_iteration.svg")
