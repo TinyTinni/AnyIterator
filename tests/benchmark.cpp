@@ -36,8 +36,7 @@ void benchmark_iteration(benchmark::State &state)
     }
 
 
-    state.SetBytesProcessed(int64_t(state.iterations()) *
-        int64_t(state.range(0))*sizeof(int));
+    state.SetItemsProcessed(state.iterations() * int64_t(state.range(0)));
 }
 
 template< class IterT, class ContainerT >
