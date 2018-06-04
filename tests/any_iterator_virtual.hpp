@@ -33,13 +33,13 @@ class any_iterator_virtual : std::iterator<std::bidirectional_iterator_tag, T>
     public:
         IterHolder(IterT t):iter_{std::move(t)}{}
         ~IterHolder(){}
-        void inc() { ++iter_; }
-        void dec() { --iter_; }
-        T* deref() { return &(*iter_); }
-        bool equal_holder(const void* in) const { return iter_ == reinterpret_cast<const IterHolder<IterT>*>(in)->iter_; }
-        bool equal(const void* in) const { return iter_ == *reinterpret_cast<const IterT*>(in); }
-        void copy_and_assign_to(void* dst) const { new (dst) IterHolder(iter_); }
-        size_t holder_size() { return sizeof(IterHolder<IterT>); }
+        void inc() final { ++iter_; }
+        void dec() final { --iter_; }
+        T* deref() final { return &(*iter_); }
+        bool equal_holder(const void* in) const final { return iter_ == reinterpret_cast<const IterHolder<IterT>*>(in)->iter_; }
+        bool equal(const void* in) const final { return iter_ == *reinterpret_cast<const IterT*>(in); }
+        void copy_and_assign_to(void* dst) const final { new (dst) IterHolder(iter_); }
+        size_t holder_size() final { return sizeof(IterHolder<IterT>); }
     };
 
     // helper functions
