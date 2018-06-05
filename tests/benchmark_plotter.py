@@ -12,7 +12,7 @@ def parse_row(row_mean, row_median, row_std_dev):
     size = int(tmp[1].split("_")[0])
 
     #get cpu time -> index 3
-    time_idx = 5
+    time_idx = 6
 
     avg = float(row_mean[time_idx])
     std_dev = float(row_std_dev[time_idx])
