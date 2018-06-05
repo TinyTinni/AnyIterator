@@ -9,9 +9,8 @@ Tests includes the performance impact given an iterator of std\::map or std\::li
 The third iterator, any_iterator_virtual, is an alternative implementation of any_iterator using an abstract class.
 
 Tested Compilers:
-
-    - [MSVC 2017](msvc-2017)
-    - [GCC 8.1](gcc-8.1)
+  - [MSVC 2017](msvc-2017)
+  - [GCC 8.1](gcc-8.1)
 
 ## MSVC 2017
 
