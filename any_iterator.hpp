@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <utility>
 
-#include <cassert>
+#include <iostream>
 
 namespace tyti {
 template<typename T>
@@ -22,8 +22,8 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         const bool(*const equal_fn)(const void*,const void*);
         const T*(*const deref_fn)(const void*);
         void(*const dtor_fn)(void*);
-        void(*const copy_ctor_fn)(void*,const void*);
-        void(*const move_ctor_fn)(void*, const void*);
+        void(*const copy_ctor_fn)(void**,const void*);
+        void(*const move_ctor_fn)(void**, const void*);
         const size_t size;
     };
 
@@ -110,14 +110,14 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         reinterpret_cast<Iter*>(get_voidp<Iter>(&_ptr))->~Iter();
     }
     template<typename Iter>
-    static void copyConstructor(void* _dst, const void* _src)
+    static void copyConstructor(void** _dst, const void* _src)
     {
-        new (get_voidp<Iter>(&_dst)) Iter(*reinterpret_cast<const Iter*>(get_voidp<Iter>(&_src)));
+        new (is_small(sizeof(Iter)) ? _dst : *_dst) Iter(*reinterpret_cast<const Iter*>(get_voidp<Iter>(&_src)));
     }
     template<typename Iter>
-    static void moveConstructor(void* _dst, const void* _src)
+    static void moveConstructor(void** _dst, const void* _src)
     {
-        new (get_voidp<Iter>(&_dst)) Iter(std::move(*reinterpret_cast<const Iter*>(get_voidp<Iter>(&_src))));
+        new (is_small(sizeof(Iter))?_dst:*_dst) Iter(std::move(*reinterpret_cast<const Iter*>(get_voidp<Iter>(&_src))));
     }
 
     // helper functions
@@ -160,12 +160,12 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 
     inline void copy_and_assign(const void* _src)
     {
-        ti_->copy_ctor_fn(ptr_, _src);
+        ti_->copy_ctor_fn(&ptr_, _src);
     }
 
     inline void move_iter(const void* _src)
     {
-        ti_->move_ctor_fn(ptr_, _src);
+        ti_->move_ctor_fn(&ptr_, _src);
     }
 
     inline static void* my_malloc(size_t size)
