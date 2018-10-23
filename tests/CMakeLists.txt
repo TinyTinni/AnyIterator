@@ -5,30 +5,24 @@ set(SRCS
  "basic.cpp"
  "main.cpp")
 
-add_executable(tests "../any_iterator.hpp;../Readme.md" ${SRCS})
-if (MSVC)
-    target_compile_definitions(tests PUBLIC CATCH_CONFIG_WINDOWS_CRTDBG)
-endif()
+include_directories("../")
 
-find_path(
-    CATCH_INCLUDE_DIR 
-    NAMES catch.hpp
-    DOC "Catch include dir"
-)
-if (NOT CATCH_INCLUDE_DIR)
+
+find_package(Catch2 QUIET)
+if (NOT TARGET Catch2::Catch)
     include(ExternalProject)
     find_package(Git REQUIRED)
-    
-    set(BRANCH "master")
+	
+	set(BRANCH "master")
 	if (MSVC_VERSION LESS 1900)
 		set(BRANCH "Catch1.x") #catch2 needs C++11
-    endif()
+	endif()
     
     ExternalProject_Add(
         catch
         PREFIX ${CMAKE_BINARY_DIR}/catch
         GIT_REPOSITORY https://github.com/philsquared/Catch.git
-        GIT_TAG ${BRANCH}
+		GIT_TAG ${BRANCH}
         TIMEOUT 10
         UPDATE_COMMAND ${GIT_EXECUTABLE} pull
         CONFIGURE_COMMAND ""
@@ -37,11 +31,23 @@ if (NOT CATCH_INCLUDE_DIR)
         LOG_DOWNLOAD ON
     )
     ExternalProject_Get_Property(catch source_dir)
-    set(CATCH_INCLUDE_DIR ${source_dir}/single_include CACHE INTERNAL "Path to include folder for Catch.")
-    add_dependencies(tests catch)
+    
+    add_library(Catch INTERFACE)
+    set(INCLUDE_POSTFIX "catch2/")
+    if (MSVC_VERSION LESS 1900)
+        set(INCLUDE_POSTFIX "")
+    endif()
+    target_include_directories(Catch INTERFACE "${source_dir}/single_include/${INCLUDE_POSTFIX}")
+    add_dependencies(Catch catch)
+    add_library(Catch2::Catch ALIAS Catch)
 endif()
 
-include_directories(${CATCH_INCLUDE_DIR} "../")
+add_executable(tests "../any_iterator.hpp;../Readme.md" ${SRCS})
+target_link_libraries(tests PRIVATE Catch2::Catch)
+
+if (MSVC)
+    target_compile_definitions(tests PUBLIC CATCH_CONFIG_WINDOWS_CRTDBG)
+endif()
 
 include(CTest)
 enable_testing(true)  # Enables unit-testing.
