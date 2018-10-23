@@ -90,5 +90,12 @@ TEST_CASE("basic inc-/decrement", "[basic]")
         it = tyti::any_iterator<int>(vc.end());
         REQUIRE(it == vc.end());
     }
+    SECTION("small iterator")
+    {
+        tyti::any_iterator<int> it(vc.begin());
+        int* itc = vc.data();
+        for (size_t i = 0; i < vc.size(); ++it, ++itc, ++i)
+            REQUIRE(*it == *itc);
+    }
 }
 

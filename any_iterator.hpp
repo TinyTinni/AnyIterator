@@ -64,44 +64,103 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         const T& operator*() const { assert(false); return *(reinterpret_cast<const T*>(this)); }
     };
 
+
+    constexpr static bool is_small(size_t size)
+    {
+        return size <= sizeof(void*);
+    }
+
+    template<typename Iter>
+    struct is_small_type
+    {
+        constexpr static bool value = is_small(sizeof(Iter));
+    };
+    template<typename Iter>
+    static constexpr bool is_small_type_v = is_small_type<Iter>::value;
+
+
+    template<typename K, typename U, bool = std::is_const<K>::value >
+    struct if_const_add_const
+    {
+        using type = std::add_const_t<U>;
+    };
+    template<typename K, typename U>
+    struct if_const_add_const<K,U,false>
+    {
+        using type = U;
+    };
+    template<typename K, typename U>
+    using if_const_add_const_t = typename if_const_add_const<K,U>::type;
+
+
+    // is small value -> address in void* is not a ptr
+    template<typename Iter>
+    inline static Iter ptr_cast(void* _ptr, std::true_type)
+    {
+        return reinterpret_cast<Iter>(_ptr);
+    }
+    // big type -> address in void* is a ptr
+    template<typename Iter>
+    inline static Iter ptr_cast(void* _ptr, std::false_type)
+    {
+        return reinterpret_cast<Iter>(_ptr);
+    }
+
     //access functions
+    template<typename Iter>
+    inline static Iter ptr_cast(void* _ptr)
+    {
+        return ptr_cast<Iter>(_ptr, std::integral_constant<bool, is_small(sizeof(std::remove_pointer_t<Iter>))>());
+    }
+
+    template<typename Iter>
+    inline static constexpr void* get_voidp(void** _ptr)
+    {
+        return is_small(sizeof(Iter)) ? static_cast<void*>(_ptr) : *_ptr;
+    }
+    template<typename Iter>
+    inline static constexpr const void* get_voidp(const void** _ptr)
+    {
+        return is_small(sizeof(Iter)) ? static_cast<const void*>(_ptr): *_ptr;
+    }
+
     template<typename Iter>
     static void inc(void* _ptr)
     {
-        ++(*reinterpret_cast<Iter*>(_ptr));
+        ++(*reinterpret_cast<Iter*>(get_voidp<Iter>(&_ptr)));
     }
 
     template<typename Iter>
     static void dec(void* _ptr)
     {
-        --(*reinterpret_cast<Iter*>(_ptr));
+        --(*reinterpret_cast<Iter*>(get_voidp<Iter>(&_ptr)));
     }
 
     template<typename Iter>
     static const T* deref(const void* _ptr)
     {
-        return &(*(*reinterpret_cast<const Iter*>(_ptr)));
+        return &(*(*reinterpret_cast<const Iter*>(get_voidp<Iter>(&_ptr))));
     }
 
     template<typename Iter>
     static const bool equal(const void* _lhs, const void* _rhs)
     {
-        return *reinterpret_cast<const Iter*>(_lhs) == *reinterpret_cast<const Iter*>(_rhs);
+        return *reinterpret_cast<const Iter*>(get_voidp<Iter>(&_lhs)) == *reinterpret_cast<const Iter*>(get_voidp<Iter>(&_rhs));
     }
     template<typename Iter>
     static void dtor(void* _ptr)
     {
-        reinterpret_cast<Iter*>(_ptr)->~Iter();
+        reinterpret_cast<Iter*>(get_voidp<Iter>(&_ptr))->~Iter();
     }
     template<typename Iter>
     static void copyConstructor(void* _dst, const void* _src)
     {
-        new (_dst) Iter(*reinterpret_cast<const Iter*>(_src));
+        new (get_voidp<Iter>(&_dst)) Iter(*reinterpret_cast<const Iter*>(get_voidp<Iter>(&_src)));
     }
     template<typename Iter>
     static void moveConstructor(void* _dst, const void* _src)
     {
-        new (_dst) Iter(std::move(*reinterpret_cast<const Iter*>(_src)));
+        new (get_voidp<Iter>(&_dst)) Iter(std::move(*reinterpret_cast<const Iter*>(get_voidp<Iter>(&_src))));
     }
 
     // helper functions
@@ -113,13 +172,33 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     void switch_type(const TypeInfos* _newType)
     {
         destruct();
+
+        //manage memory if type sizes are different
         if (ti_->size < _newType->size)
         {
-            ptr_ = std::realloc(ptr_, _newType->size);
-            if (!ptr_)
-                throw std::bad_alloc();
+            if ( is_small(ti_->size))
+            {
+                my_malloc(_newType->size);
+            }
+            else // old type is not small type
+            {
+                if (is_small(_newType->size))
+                    std::free(ptr_);
+                else 
+                    ptr_ = std::realloc(ptr_, _newType->size);               
+            }
+            if ( !check_alloc(ptr_,_newType->size)) throw std::bad_alloc();
         }
+
+
         ti_ = _newType;
+    }
+
+    template<typename IterType>
+    inline static constexpr const void* itertype_addr(const IterType& _iter)
+    {
+        const void* ptr = reinterpret_cast<const void*>(&_iter);
+        return is_small(sizeof(IterType)) ? &ptr : ptr;
     }
 
     inline void copy_and_assign(const void* _src)
@@ -132,6 +211,16 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         ti_->move_ctor_fn(ptr_, _src);
     }
 
+    inline static void* my_malloc(size_t size)
+    {
+        return (is_small(size)) ? 0 : malloc(size);
+    }
+
+    inline static constexpr bool check_alloc(void* ptr, size_t size)
+    {
+        return (is_small(size)) ? true : ptr != nullptr;
+    }
+
     // member variables
     void* ptr_;
     const TypeInfos* ti_;
@@ -140,27 +229,24 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
 public:
     template <typename IterType, class = typename std::enable_if<!std::is_rvalue_reference<IterType>::value>::type>
     explicit any_iterator(const IterType& _iter) 
-        : ptr_(std::malloc(sizeof(IterType))), ti_(getFunctionInfos<IterType>())
+        : ptr_(my_malloc(sizeof(IterType))), ti_(getFunctionInfos<IterType>())
     {
-        if (!ptr_)
-            throw std::bad_alloc();
-        copy_and_assign(&_iter);
+        if (!check_alloc(ptr_, sizeof(IterType))) throw std::bad_alloc();
+        copy_and_assign(itertype_addr(_iter));
     }
 
     template<typename IterType, class = typename std::enable_if<std::is_rvalue_reference<IterType>::value>::type>
         explicit any_iterator(IterType&& _iter)
-        : ptr_(std::malloc(_iter.ti_->size)), ti_(std::move(_iter.ti_))
+        : ptr_(my_malloc(_iter.ti_->size)), ti_(std::move(_iter.ti_))
     {
-        if (!ptr_)
-            throw std::bad_alloc();
-        move_iter(_iter.ptr_);
+        if ( !check_alloc(ptr_,_iter.ti_->size)) throw std::bad_alloc();
+        move_iter(_iter);
     }
 
     any_iterator(const any_iterator& _iter)
-        : ptr_(std::malloc(_iter.ti_->size)), ti_(_iter.ti_)
+        : ptr_(my_malloc(_iter.ti_->size)), ti_(_iter.ti_)
     {
-        if (!ptr_)
-            throw std::bad_alloc();
+        if ( !check_alloc(ptr_,_iter.ti_->size)) throw std::bad_alloc();
         copy_and_assign(_iter.ptr_);
     }
 
@@ -174,7 +260,7 @@ public:
     const any_iterator& operator=(const IterType& _iter)
     {
         switch_type(getFunctionInfos<IterType>());
-        copy_and_assign(&_iter);
+        copy_and_assign(itertype_addr(_iter));
         return *this;
     }
 
@@ -182,7 +268,7 @@ public:
         const any_iterator& operator=(IterType&& _iter)
     {
         switch_type(getFunctionInfos<IterType>());
-        move_iter(&_iter);
+        move_iter(itertype_addr(_iter));
         return *this;
     }
 
@@ -204,7 +290,8 @@ public:
     ~any_iterator() 
     {
         destruct();
-        std::free(ptr_);
+        if (!is_small(ti_->size))
+            std::free(ptr_);
     }
 
     bool operator==(const any_iterator& _rhs) const
@@ -216,7 +303,7 @@ public:
 
     template <typename IterType>
     bool operator==(const IterType& _rhs) const {
-        return ti_->equal_fn(ptr_, reinterpret_cast<const void*>(&_rhs));
+        return ti_->equal_fn(ptr_, itertype_addr(_rhs));
     }
 
     template <typename IterType>
