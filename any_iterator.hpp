@@ -3,7 +3,6 @@
 #include <iterator>
 
 #include <cstdlib> //malloc, realloc
-#include <cstring> //memcpy, memmove
 #include <exception> //bad_alloc
 #include <type_traits>
 #include <utility>
