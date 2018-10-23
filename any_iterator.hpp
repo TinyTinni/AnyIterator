@@ -71,49 +71,6 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     }
 
     template<typename Iter>
-    struct is_small_type
-    {
-        constexpr static bool value = is_small(sizeof(Iter));
-    };
-    template<typename Iter>
-    static constexpr bool is_small_type_v = is_small_type<Iter>::value;
-
-
-    template<typename K, typename U, bool = std::is_const<K>::value >
-    struct if_const_add_const
-    {
-        using type = std::add_const_t<U>;
-    };
-    template<typename K, typename U>
-    struct if_const_add_const<K,U,false>
-    {
-        using type = U;
-    };
-    template<typename K, typename U>
-    using if_const_add_const_t = typename if_const_add_const<K,U>::type;
-
-
-    // is small value -> address in void* is not a ptr
-    template<typename Iter>
-    inline static Iter ptr_cast(void* _ptr, std::true_type)
-    {
-        return reinterpret_cast<Iter>(_ptr);
-    }
-    // big type -> address in void* is a ptr
-    template<typename Iter>
-    inline static Iter ptr_cast(void* _ptr, std::false_type)
-    {
-        return reinterpret_cast<Iter>(_ptr);
-    }
-
-    //access functions
-    template<typename Iter>
-    inline static Iter ptr_cast(void* _ptr)
-    {
-        return ptr_cast<Iter>(_ptr, std::integral_constant<bool, is_small(sizeof(std::remove_pointer_t<Iter>))>());
-    }
-
-    template<typename Iter>
     inline static constexpr void* get_voidp(void** _ptr)
     {
         return is_small(sizeof(Iter)) ? static_cast<void*>(_ptr) : *_ptr;
