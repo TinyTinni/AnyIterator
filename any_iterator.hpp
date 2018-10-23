@@ -152,10 +152,9 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
     }
 
     template<typename IterType>
-    inline static constexpr const void* itertype_addr(const IterType& _iter)
+    inline static constexpr const void* itertype_addr(const void** ptr)
     {
-        const void* ptr = reinterpret_cast<const void*>(&_iter);
-        return is_small(sizeof(IterType)) ? &ptr : ptr;
+        return is_small(sizeof(IterType)) ? ptr : *ptr;
     }
 
     inline void copy_and_assign(const void* _src)
@@ -189,7 +188,8 @@ public:
         : ptr_(my_malloc(sizeof(IterType))), ti_(getFunctionInfos<IterType>())
     {
         if (!check_alloc(ptr_, sizeof(IterType))) throw std::bad_alloc();
-        copy_and_assign(itertype_addr(_iter));
+        auto ptr = reinterpret_cast<const void*>(&_iter);
+        copy_and_assign(itertype_addr<IterType>(&ptr));
     }
 
     template<typename IterType, class = typename std::enable_if<std::is_rvalue_reference<IterType>::value>::type>
@@ -217,7 +217,8 @@ public:
     const any_iterator& operator=(const IterType& _iter)
     {
         switch_type(getFunctionInfos<IterType>());
-        copy_and_assign(itertype_addr(_iter));
+        auto ptr = reinterpret_cast<const void*>(&_iter);
+        copy_and_assign(itertype_addr<IterType>(&ptr));
         return *this;
     }
 
@@ -225,7 +226,8 @@ public:
         const any_iterator& operator=(IterType&& _iter)
     {
         switch_type(getFunctionInfos<IterType>());
-        move_iter(itertype_addr(_iter));
+        auto ptr = reinterpret_cast<const void*>(&_iter);
+        move_iter(itertype_addr<IterType>(&ptr));
         return *this;
     }
 
@@ -260,7 +262,8 @@ public:
 
     template <typename IterType>
     bool operator==(const IterType& _rhs) const {
-        return ti_->equal_fn(ptr_, itertype_addr(_rhs));
+        auto ptr = reinterpret_cast<const void*>(&_rhs);
+        return ti_->equal_fn(ptr_, itertype_addr<IterType>(&ptr));
     }
 
     template <typename IterType>
