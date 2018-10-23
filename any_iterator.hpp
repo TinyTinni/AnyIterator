@@ -8,8 +8,6 @@
 #include <type_traits>
 #include <utility>
 
-#include <iostream>
-
 namespace tyti {
 template<typename T>
 class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
@@ -64,7 +62,13 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         const T& operator*() const { assert(false); return *(reinterpret_cast<const T*>(this)); }
     };
 
-
+    // small buffer optimization
+    // when sizeof(Iter) <= sizeof(void*) aka type for the pointer
+    // no malloc is done, everything is saved in the pointer itself
+    // when the pointer is used as buffer, no deref is necessary
+    // below are some helper functions.
+    // Almost all logic is inside the iter_type-defined functions like inc/dec etc.
+    // which allows compile to have the buffer optimization without any overhead
     constexpr static bool is_small(size_t size)
     {
         return size <= sizeof(void*);
@@ -81,6 +85,7 @@ class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
         return is_small(sizeof(Iter)) ? static_cast<const void*>(_ptr): *_ptr;
     }
 
+    // wrapper functions for calling the memberfunction of the wrapped iterator
     template<typename Iter>
     static void inc(void* _ptr)
     {
@@ -306,12 +311,6 @@ public:
         return ti_->deref_fn(ptr_);
     }
 };
-
-// C++17 todo:
-//if msvc >= 2017 or gcc with c++17 support
-//#include <any>
-//using AnyIterator = AnyIteratorT<std::any>;
-//endif
 
 } // end namespace tyti
 
