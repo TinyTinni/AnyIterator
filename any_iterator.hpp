@@ -9,7 +9,7 @@
 
 namespace tyti {
 template<typename T>
-class any_iterator : std::iterator<std::bidirectional_iterator_tag, T>
+class any_iterator : public std::iterator<std::bidirectional_iterator_tag, T>
 {
     //functionpointer save structurez
     struct TypeInfos
